@@ -16,8 +16,10 @@ const sliceGutenbergText = (text: string) => {
   const startMatch = normalized.match(/\*\*\* START OF[\s\S]*?\*\*\*/i);
   const endMatch = normalized.match(/\*\*\* END OF[\s\S]*?\*\*\*/i);
 
-  const startIndex = startMatch ? startMatch.index + startMatch[0].length : 0;
-  const endIndex = endMatch ? endMatch.index : normalized.length;
+  const startIndex = startMatch?.index
+    ? startMatch.index + startMatch[0].length
+    : 0;
+  const endIndex = endMatch?.index ?? normalized.length;
 
   return normalized.slice(startIndex, endIndex).trim();
 };
