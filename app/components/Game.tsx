@@ -13,6 +13,7 @@ type BookPayload = {
   sentence: string;
   paragraph: string;
   section: string;
+  options: string[];
 };
 
 type HintKey = "title" | "author" | "subjects" | "bookshelves" | "language";
@@ -31,6 +32,7 @@ export default function Game() {
   const [loading, setLoading] = useState(false);
   const [revealLevel, setRevealLevel] = useState(0);
   const [revealedHints, setRevealedHints] = useState<HintKey[]>([]);
+  const [guess, setGuess] = useState("");
 
   const fetchBook = async () => {
     setLoading(true);
@@ -44,6 +46,7 @@ export default function Game() {
       setBook(payload);
       setRevealLevel(0);
       setRevealedHints([]);
+      setGuess("");
     } catch (fetchError) {
       setError(
         fetchError instanceof Error
@@ -101,6 +104,22 @@ export default function Game() {
 
       <div className="snippet">
         {snippet ?? "Finding a book…"}
+      </div>
+
+      <div>
+        <h3>Your guess</h3>
+        <input
+          list="book-options"
+          value={guess}
+          onChange={(event) => setGuess(event.target.value)}
+          placeholder="Start typing a book title…"
+          aria-label="Guess the book title"
+        />
+        <datalist id="book-options">
+          {(book?.options ?? []).map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
       </div>
 
       <div>

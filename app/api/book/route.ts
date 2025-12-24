@@ -110,6 +110,9 @@ export async function GET() {
   }
 
   const book = results[randomIndex(results.length)];
+  const options = Array.from(
+    new Set(results.map((result: any) => result.title).filter(Boolean))
+  );
   const textUrl = pickTextUrl(book.formats || {});
   if (!textUrl) {
     return new Response("No text available for this book.", { status: 500 });
@@ -136,6 +139,7 @@ export async function GET() {
     downloadCount: book.download_count ?? 0,
     sentence: sentence || paragraph || section || "",
     paragraph: paragraph || section || sentence || "",
-    section: section || paragraph || sentence || ""
+    section: section || paragraph || sentence || "",
+    options
   });
 }
