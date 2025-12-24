@@ -99,8 +99,6 @@ export async function GET() {
       cache: "no-store"
     }
   );
-    cache: "no-store"
-  });
   if (!pageResponse.ok) {
     return new Response("Failed to fetch book list page.", { status: 500 });
   }
