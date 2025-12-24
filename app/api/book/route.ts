@@ -24,6 +24,44 @@ const sliceGutenbergText = (text: string) => {
   return normalized.slice(startIndex, endIndex).trim();
 };
 
+const stripFrontMatter = (text: string) => {
+  const boilerplatePatterns = [
+    /project gutenberg/i,
+    /produced by/i,
+    /transcrib/i,
+    /proofread/i,
+    /release date/i,
+    /language:/i,
+    /character set encoding/i,
+    /ebook/i,
+    /gutenberg-tm/i,
+    /copyright/i,
+    /public domain/i
+  ];
+
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((para) => para.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const findStart = paragraphs.findIndex((para) => {
+    if (para.length < 120) {
+      return false;
+    }
+    if (boilerplatePatterns.some((pattern) => pattern.test(para))) {
+      return false;
+    }
+    const letterCount = para.replace(/[^A-Za-z]/g, "").length;
+    return letterCount > 80;
+  });
+
+  if (findStart === -1) {
+    return text.trim();
+  }
+
+  return paragraphs.slice(findStart).join("\n\n").trim();
+};
+
 const buildSnippets = (text: string) => {
   const paragraphs = text
     .split(/\n\s*\n/)
@@ -43,7 +81,9 @@ const randomIndex = (length: number) =>
   Math.floor(Math.random() * Math.max(length, 1));
 
 export async function GET() {
-  const baseResponse = await fetch(GUTENDEX_URL, { cache: "no-store" });
+  const baseResponse = await fetch(`${GUTENDEX_URL}?languages=en`, {
+    cache: "no-store"
+  });
   if (!baseResponse.ok) {
     return new Response("Failed to fetch book list.", { status: 500 });
   }
@@ -53,7 +93,12 @@ export async function GET() {
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
   const page = randomIndex(totalPages) + 1;
 
-  const pageResponse = await fetch(`${GUTENDEX_URL}?page=${page}`, {
+  const pageResponse = await fetch(
+    `${GUTENDEX_URL}?languages=en&page=${page}`,
+    {
+      cache: "no-store"
+    }
+  );
     cache: "no-store"
   });
   if (!pageResponse.ok) {
@@ -77,7 +122,8 @@ export async function GET() {
   }
   const rawText = await textResponse.text();
   const strippedText = sliceGutenbergText(rawText);
-  const { sentence, paragraph, section } = buildSnippets(strippedText);
+  const bookText = stripFrontMatter(strippedText);
+  const { sentence, paragraph, section } = buildSnippets(bookText);
 
   const author = book.authors?.[0]?.name || "Unknown";
 
