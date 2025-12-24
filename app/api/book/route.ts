@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 const GUTENDEX_URL = "https://gutendex.com/books/";
 const MIN_DOWNLOADS = 3000;
+const POPULAR_PAGES = 10;
 
 const pickTextUrl = (formats: Record<string, string>) => {
   return (
@@ -82,31 +83,28 @@ const randomIndex = (length: number) =>
   Math.floor(Math.random() * Math.max(length, 1));
 
 export async function GET() {
-  const baseResponse = await fetch(`${GUTENDEX_URL}?languages=en`, {
-    cache: "no-store"
-  });
-  if (!baseResponse.ok) {
-    return new Response("Failed to fetch book list.", { status: 500 });
-  }
-  const baseData = await baseResponse.json();
-  const count = baseData.count ?? 0;
-  const pageSize = baseData.results?.length ?? 32;
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
-  const page = randomIndex(totalPages) + 1;
+  let results: any[] = [];
 
-  const pageResponse = await fetch(
-    `${GUTENDEX_URL}?languages=en&page=${page}`,
-    {
-      cache: "no-store"
+  for (let attempt = 0; attempt < POPULAR_PAGES; attempt += 1) {
+    const page = randomIndex(POPULAR_PAGES) + 1;
+    const pageResponse = await fetch(
+      `${GUTENDEX_URL}?languages=en&sort=popular&page=${page}`,
+      {
+        cache: "no-store"
+      }
+    );
+    if (!pageResponse.ok) {
+      continue;
     }
-  );
-  if (!pageResponse.ok) {
-    return new Response("Failed to fetch book list page.", { status: 500 });
+    const pageData = await pageResponse.json();
+    results = (pageData.results ?? []).filter(
+      (book: any) => (book.download_count ?? 0) >= MIN_DOWNLOADS
+    );
+    if (results.length) {
+      break;
+    }
   }
-  const pageData = await pageResponse.json();
-  const results = (pageData.results ?? []).filter(
-    (book: any) => (book.download_count ?? 0) >= MIN_DOWNLOADS
-  );
+
   if (!results.length) {
     return new Response("No books found.", { status: 500 });
   }
