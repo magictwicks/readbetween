@@ -1,12 +1,7 @@
 export const runtime = "edge";
 
 const GUTENDEX_URL = "https://gutendex.com/books/";
-const TOP_AUTHOR_LIMIT = 100;
-const TOP_BOOK_SAMPLE_PAGES = 6;
-
-let cachedTopAuthors: string[] | null = null;
-let cachedAt = 0;
-const TOP_AUTHOR_TTL_MS = 1000 * 60 * 60 * 6;
+const MIN_DOWNLOADS = 3000;
 
 const pickTextUrl = (formats: Record<string, string>) => {
   return (
@@ -86,48 +81,7 @@ const buildSnippets = (text: string) => {
 const randomIndex = (length: number) =>
   Math.floor(Math.random() * Math.max(length, 1));
 
-const fetchTopAuthors = async () => {
-  if (cachedTopAuthors && Date.now() - cachedAt < TOP_AUTHOR_TTL_MS) {
-    return cachedTopAuthors;
-  }
-
-  const authors = new Map<string, number>();
-
-  for (let page = 1; page <= TOP_BOOK_SAMPLE_PAGES; page += 1) {
-    const response = await fetch(
-      `${GUTENDEX_URL}?languages=en&sort=popular&page=${page}`,
-      { cache: "no-store" }
-    );
-    if (!response.ok) {
-      break;
-    }
-    const data = await response.json();
-    const results = data.results ?? [];
-    for (const book of results) {
-      const downloadCount = book.download_count ?? 0;
-      for (const author of book.authors ?? []) {
-        if (!author?.name) {
-          continue;
-        }
-        const current = authors.get(author.name) ?? 0;
-        authors.set(author.name, Math.max(current, downloadCount));
-      }
-    }
-  }
-
-  const topAuthors = Array.from(authors.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, TOP_AUTHOR_LIMIT)
-    .map(([name]) => name);
-
-  cachedTopAuthors = topAuthors;
-  cachedAt = Date.now();
-
-  return topAuthors;
-};
-
 export async function GET() {
-  const topAuthors = await fetchTopAuthors();
   const baseResponse = await fetch(`${GUTENDEX_URL}?languages=en`, {
     cache: "no-store"
   });
@@ -150,10 +104,8 @@ export async function GET() {
     return new Response("Failed to fetch book list page.", { status: 500 });
   }
   const pageData = await pageResponse.json();
-  const results = (pageData.results ?? []).filter((book: any) =>
-    (book.authors ?? []).some((author: any) =>
-      topAuthors.includes(author?.name)
-    )
+  const results = (pageData.results ?? []).filter(
+    (book: any) => (book.download_count ?? 0) >= MIN_DOWNLOADS
   );
   if (!results.length) {
     return new Response("No books found.", { status: 500 });
